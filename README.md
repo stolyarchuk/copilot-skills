@@ -7,7 +7,7 @@ Use this repo to create, validate, and package Skills.
 
 ## Quick summary
 
-- Each Skill lives under `.github/skills/` and must include `SKILL.md` with YAML frontmatter: `name`, `description`.
+- Each Skill lives under `skills/` during development and must include `SKILL.md` with YAML frontmatter: `name`, `description`. For templates, packaging helpers, and legacy examples see `.github/skills/`.
 - Use `scripts/` for runnable helpers, `references/` for longer docs (load on demand), and `assets/` for templates and files.
 
 ## Typical commands (run locally)
@@ -47,7 +47,7 @@ python .github/skills/skill-creator/scripts/package_skill.py <path/to/skill> [ou
 
 ## Examples
 
-- See `.github/skills/humanize/SKILL.md` for a concise `description` and rules.
+- See `skills/humanize/SKILL.md` for a concise `description` and rules.
 - See `.github/skills/skill-creator/` for templates and helper scripts.
 
 ---

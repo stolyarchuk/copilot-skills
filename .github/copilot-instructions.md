@@ -4,8 +4,8 @@ Purpose: Help AI coding agents be productive here by highlighting repository str
 
 ## Quick orientation
 
-- This repo hosts reusable "Skills" designed for AI agents. Each skill lives in its own folder and must include a `SKILL.md` with YAML frontmatter (`name` and `description`). See example: `.github/skills/humanize/SKILL.md`.
-- Primary helper scripts are under `.github/skills/skill-creator/scripts/`:
+- This repo hosts reusable "Skills" designed for AI agents. Skills under development live in the top-level `skills/` directory; each skill must include a `SKILL.md` with YAML frontmatter (`name` and `description`). See example: `skills/humanize/SKILL.md`.
+- Primary helper scripts for creating, validating, and packaging skills are located in `.github/skills/skill-creator/scripts/`:
   - `init_skill.py` — create a new skill scaffold
   - `quick_validate.py` — validate `SKILL.md` frontmatter and naming
   - `package_skill.py` — validate + package a skill into a `.skill` (zip) file
@@ -42,7 +42,7 @@ Purpose: Help AI coding agents be productive here by highlighting repository str
 
 ## Examples from this repo (use when writing/validating)
 
-- Good frontmatter + trigger example: `.github/skills/humanize/SKILL.md` — concise `description` that explicitly lists "When to use" cases.
+- Good frontmatter + trigger example: `skills/humanize/SKILL.md` — concise `description` that explicitly lists "When to use" cases.
 - Templates & scripts: `.github/skills/skill-creator/scripts/init_skill.py` shows the recommended template structure for `SKILL.md`, `scripts/`, `references/`, and `assets/`.
 
 ## Do / Don't (actionable, repo-specific)
