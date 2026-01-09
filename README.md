@@ -9,6 +9,7 @@ Skills are small, reusable packages that teach an AI repeatable tasks. This repo
 - `skills/cpp-modernize` - C++23 modernization: refactorings, short examples, and cppreference links. See `skills/cpp-modernize/SKILL.md`.
 - `skills/doca-expert` - DOCA Flow (>= 3.2.0): C++ patterns, performance trade-offs, and official links. See `skills/doca-expert/SKILL.md`.
 - `skills/humanize` - Rewrite technical text into concise, engineer-to-engineer tone. See `skills/humanize/SKILL.md`.
+- `skills/vpp-skill` - VPP plugin examples and C API guidance: example plugins, build hints, and C API header references. See `skills/vpp-skill/SKILL.md`.
 
 ---
 
