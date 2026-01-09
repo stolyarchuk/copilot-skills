@@ -15,6 +15,7 @@ Expected output:
 
 ```text
 Summary: Use a DOCA Flow table for 5-tuple matches and use queue-forward actions; program rules in batches.
+
 Checklist:
 - Use flow tables for 5-tuple match
 - Batch control-plane updates
@@ -157,12 +158,8 @@ C++ snippet (FlowProgrammer):
 References:
 - [DOCA Flow SDK docs](https://docs.nvidia.com/doca/sdk/doca-flow/index.html)
 - [DOCA Flow API (v3.2.0)](https://docs.nvidia.com/doca/api/3.2.0/doca-libraries-api/modules.html)
-```References:
 
-- [DOCA Flow SDK docs](https://docs.nvidia.com/doca/sdk/doca-flow/index.html)
-- [DOCA Flow API (v3.2.0)](https://docs.nvidia.com/doca/api/3.2.0/doca-libraries-api/modules.html)
-
-```text
+```
 
 Input:
 
@@ -174,6 +171,7 @@ Expected output:
 
 ```text
 Summary: Tail latency usually from contention or synchronous ops; use lockless handoff and batching.
+
 Checklist:
 - Profile queues and CPU
 - Use SPSC queues for handoff
