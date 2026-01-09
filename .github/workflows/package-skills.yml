@@ -1,0 +1,58 @@
+name: Package skills
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'skills/**'
+      - '.github/skills/**'
+  workflow_dispatch: {}
+
+jobs:
+  package:
+    name: Package and upload .skill artifacts
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyyaml
+
+      - name: Package skills
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          any_packed=0
+          for d in skills/*; do
+            if [ -f "$d/SKILL.md" ]; then
+              echo "\n📦 Packaging skill: $d"
+              python .github/skills/skill-creator/scripts/package_skill.py "$d" ./dist
+              any_packed=1
+            fi
+          done
+          if [ "$any_packed" -eq 0 ]; then
+            echo "No skills found to package"
+          else
+            echo "Packaged files:"
+            ls -l dist || true
+          fi
+
+      - name: Upload .skill artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: skills-dist
+          path: dist/*.skill
+          retention-days: 7
+
+      - name: Done
+        run: echo "Packaging job finished"

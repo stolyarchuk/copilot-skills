@@ -1,0 +1,60 @@
+name: Skills validation
+
+on:
+  pull_request:
+    paths:
+      - 'skills/**'
+      - '.github/skills/**'
+  push:
+    branches: [ main ]
+    paths:
+      - 'skills/**'
+      - '.github/skills/**'
+
+jobs:
+  validate:
+    name: Validate skills & smoke tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyyaml
+
+      - name: Run quick_validate on each skill
+        run: |
+          set -euo pipefail
+          echo "Locating skills..."
+          for d in skills/*; do
+            if [ -f "$d/SKILL.md" ]; then
+              echo "\n🔍 Validating $d"
+              python .github/skills/skill-creator/scripts/quick_validate.py "$d"
+            fi
+          done
+
+      - name: Run smoke tests for skills with examples
+        run: |
+          set -euo pipefail
+          echo "Locating skills with examples..."
+          for d in skills/*; do
+            if [ -f "$d/references/examples.md" ]; then
+              if [ -f "$d/scripts/validate_examples.py" ] && [ -f "$d/scripts/mock_runner.py" ]; then
+                echo "\n🚦 Running smoke tests for $d"
+                python "$d/scripts/validate_examples.py" --examples "$d/references/examples.md" --runner "python $d/scripts/mock_runner.py"
+              else
+                echo "Skipping $d - missing validator or mock runner"
+              fi
+            fi
+          done
+
+      - name: Done
+        run: echo "All validations completed (or failed earlier)."

@@ -1,71 +1,82 @@
 # Copilot / AI Agent Instructions for this Repo
 
-Purpose: Help AI coding agents be productive here by highlighting repository structure, developer workflows, and project-specific conventions.
+Purpose: Make AI coding agents productive here by highlighting repository structure, concrete workflows, and project-specific conventions.
 
-## Quick orientation
+## Big picture
 
-- This repo hosts modular "Skills" that package domain knowledge, small scripts, and examples to make AI agents reliable and deterministic.
-- Each skill lives under `skills/<skill-name>/` and must include a `SKILL.md` with YAML frontmatter (`name` and `description`). Examples: `skills/humanize/`, `skills/cpp-modernize/`.
-- The skill-authoring tooling lives under `.github/skills/skill-creator/scripts/` and is the canonical place for validation and packaging logic.
+- Repository scope: this repo contains modular "Skills" under `skills/<skill-name>/`. Each skill is composed of:
+  - `SKILL.md` (required): short metadata + core usage guidance
+  - `references/` (optional): long-form docs, examples, guidelines (load only when needed)
+  - `scripts/` (optional): runnable helpers, smoke-test runners (include shebang, be deterministic)
+  - `assets/` (optional): binaries or templates
+- Tooling: authoring and packaging helpers live in `.github/skills/skill-creator/` (use `init_skill.py`, `quick_validate.py`, `package_skill.py`). Follow the progressive-disclosure principle: keep `SKILL.md` concise and reference large content from `references/`.
 
-## Key conventions (must follow)
+## Essential commands (copy/paste)
 
-- SKILL frontmatter (enforced by `quick_validate.py`)
+- Initialize a skill template:
 
-  - Required keys: `name` and `description`.
-  - Allowed extras: `license`, `allowed-tools`, `metadata`.
-  - `name`: hyphen-case (lowercase letters, digits, hyphens), max 64 chars; cannot start/end with `-` or contain `--`.
-  - `description`: short, explicit "when to use" trigger text (no `<` or `>` characters), max 1024 chars.
-  - Frontmatter must start the file and be delimited by `---` lines.
+```bash
+python .github/skills/skill-creator/scripts/init_skill.py my-new-skill --path skills/public
+```
 
-- Directory layout and file roles
+- Validate a skill locally (and in CI):
 
-  - `scripts/`: small, deterministic helpers and test runners (runnable; include shebang). Put code you expect agents to execute here.
-  - `references/`: long-form docs, examples, guidelines; loaded only when the skill is triggered. For files >100 lines include a TOC.
-  - `assets/`: binary or template files used in outputs (do not load into context by default).
+```bash
+python .github/skills/skill-creator/scripts/quick_validate.py skills/my-skill
+```
 
-- Progressive disclosure (why this layout exists)
-  - Keep `SKILL.md` lean: only metadata and core guidance. Body is loaded only after a trigger to avoid wasting context tokens. Put large or versioned content in `references/`.
+- Package a skill to a distributable `.skill` (zip):
 
-## Concrete validation & test patterns
+```bash
+python .github/skills/skill-creator/scripts/package_skill.py skills/my-skill [./dist]
+```
 
-- Skill sanity check
+- Run smoke tests for examples (per-skill):
 
-  - `python .github/skills/skill-creator/scripts/quick_validate.py <skill-folder>` — checks frontmatter format, allowed keys, naming rules, and lengths.
+```bash
+python skills/<skill>/scripts/validate_examples.py --examples skills/<skill>/references/examples.md --runner "python skills/<skill>/scripts/mock_runner.py"
+```
 
-- Packaging
+## Validation & frontmatter rules (explicit)
 
-  - `python .github/skills/skill-creator/scripts/package_skill.py <skill-folder> [output-dir]` — validates then creates `<skill-name>.skill` (zip). The packager preserves paths relative to the skill's parent folder and prints added files as it runs.
+- `SKILL.md` must start with YAML frontmatter (`---`); required keys are:
+  - `name`: hyphen-case (lowercase letters, digits, hyphens), max 64 chars, no leading/trailing hyphen or `--`
+  - `description`: short trigger text, no `<` or `>`, max 1024 chars
+- Allowed extra keys: `license`, `allowed-tools`, `metadata`
+- `quick_validate.py` enforces these rules; run it before packaging or opening PRs.
 
-- Smoke tests / examples
+## Smoke tests & runner contract
 
-  - Examples must be in `references/examples.md` using this pattern:
+- `references/examples.md` must include `Input`/`Expected output` fenced code blocks; `validate_examples.py` parses and compares them.
+- Runner contract: the `--runner` command must read from stdin and write the skill output to stdout; keep outputs deterministic.
+- If whitespace differences are acceptable, run `validate_examples.py` with `--fuzzy`.
 
-    Input:
+## Packaging details & ZIP layout
 
-    ```text
-    ...
-    ```
+- The packager validates and zips the skill. Files are added with paths relative to the skill folder's parent, so the resulting ZIP contains `skills/<skill-name>/...`.
+- Packaging errors usually stem from invalid frontmatter; fix with `quick_validate.py` and retry.
 
-    Expected output:
+## Environment & dependencies
 
-    ```text
-    ...
-    ```
+- Scripts use `#!/usr/bin/env python3`. Recommended Python: 3.8+.
+- `quick_validate.py` requires `PyYAML` (`pip install pyyaml`). `validate_examples.py` uses only stdlib modules.
 
-  - Local smoke-test runner: `skills/<skill>/scripts/validate_examples.py` — run like:
+## CI & PR checklist (recommended)
 
-    ```bash
-    python skills/humanize/scripts/validate_examples.py --examples skills/humanize/references/examples.md --runner "python skills/humanize/scripts/mock_runner.py"
-    ```
+- Run `quick_validate.py` on modified skill folders in PR CI.
+- Run `validate_examples.py` for any skill with `references/examples.md`.
+- Ensure new/changed `scripts/` are executable and deterministic, and `SKILL.md` frontmatter follows rules.
+- Optionally run `package_skill.py` in CI for publishable skill builds (not mandatory for PRs).
 
-  - The runner expects a command that reads from stdin and writes the skill output to stdout. The validator supports `--fuzzy` to allow whitespace-insensitive comparisons.
-  - Note: `scripts/mock_runner.py` are intentionally minimal local mocks — replace with the real skill runtime when available.
+## Project-specific patterns & examples
 
-## Repo-specific examples & patterns
+- Model `SKILL.md` after `skills/humanize/SKILL.md` (short and trigger-focused).
+- Use `skills/cpp-modernize/references/guidelines.md` as the canonical example for style and citation patterns (cite cppreference where appropriate).
+- Keep `SKILL.md` <= ~500 lines; place long docs in `references/` and link them.
 
-- Use `skills/humanize/SKILL.md` as a model for short, trigger-focused descriptions and `references/guidelines.md` for voice/style rules.
-- Use `skills/cpp-modernize/references/guidelines.md` as the canonical example for formatting, style rules, and citation patterns (always cite cppreference for language features).
+---
+
+If anything here is unclear or you'd like an example CI workflow or publish steps, tell me what to add and I will iterate.
 
 ## Do / Don't (actionable)
 
