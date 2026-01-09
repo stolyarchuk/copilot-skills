@@ -4,64 +4,83 @@ Purpose: Help AI coding agents be productive here by highlighting repository str
 
 ## Quick orientation
 
-- This repo hosts reusable "Skills" designed for AI agents. Skills under development live in the top-level `skills/` directory; each skill must include a `SKILL.md` with YAML frontmatter (`name` and `description`). See example: `skills/humanize/SKILL.md`.
-- Primary helper scripts for creating, validating, and packaging skills are located in `.github/skills/skill-creator/scripts/`:
-  - `init_skill.py` — create a new skill scaffold
-  - `quick_validate.py` — validate `SKILL.md` frontmatter and naming
-  - `package_skill.py` — validate + package a skill into a `.skill` (zip) file
+- This repo hosts modular "Skills" that package domain knowledge, small scripts, and examples to make AI agents reliable and deterministic.
+- Each skill lives under `skills/<skill-name>/` and must include a `SKILL.md` with YAML frontmatter (`name` and `description`). Examples: `skills/humanize/`, `skills/cpp-modernize/`.
+- The skill-authoring tooling lives under `.github/skills/skill-creator/scripts/` and is the canonical place for validation and packaging logic.
 
 ## Key conventions (must follow)
 
-- SKILL frontmatter
+- SKILL frontmatter (enforced by `quick_validate.py`)
 
-  - Required fields: `name` (hyphen-case, a-z0-9-; max 64 chars), `description` (clear "when to use" text; max 1024 chars).
-  - Allowed additional keys: `license`, `allowed-tools`, `metadata`.
-  - Frontmatter must be the first section in `SKILL.md` and delimited with `---`.
-  - `description` is the primary trigger text used by agents — include explicit trigger contexts (file types, user intents) here.
-  - Examples and validation rules are enforced by `.github/skills/skill-creator/scripts/quick_validate.py`.
+  - Required keys: `name` and `description`.
+  - Allowed extras: `license`, `allowed-tools`, `metadata`.
+  - `name`: hyphen-case (lowercase letters, digits, hyphens), max 64 chars; cannot start/end with `-` or contain `--`.
+  - `description`: short, explicit "when to use" trigger text (no `<` or `>` characters), max 1024 chars.
+  - Frontmatter must start the file and be delimited by `---` lines.
 
-- Naming and structure
+- Directory layout and file roles
 
-  - Skill folder name should match best practice hyphen-case naming (e.g., `humanize`, `pdf-editor`).
-  - Recommended resource subfolders: `scripts/` (executable helpers), `references/` (docs to be loaded only when needed), `assets/` (templates, images — NOT loaded into context).
-  - Scripts intended to be executed should be runnable (include shebang or documented command) and marked executable when appropriate.
+  - `scripts/`: small, deterministic helpers and test runners (runnable; include shebang). Put code you expect agents to execute here.
+  - `references/`: long-form docs, examples, guidelines; loaded only when the skill is triggered. For files >100 lines include a TOC.
+  - `assets/`: binary or template files used in outputs (do not load into context by default).
 
-- Progressive disclosure
-  - Keep `SKILL.md` concise: metadata (frontmatter) is always visible; body is loaded only after triggering; large or detailed docs belong in `references/` and should be linked from `SKILL.md`.
-  - For long reference files (100+ lines), include a short table of contents at the top.
+- Progressive disclosure (why this layout exists)
+  - Keep `SKILL.md` lean: only metadata and core guidance. Body is loaded only after a trigger to avoid wasting context tokens. Put large or versioned content in `references/`.
 
-## Typical workflows (commands agents should run)
+## Concrete validation & test patterns
 
-- Create a new skill scaffold
-  - `python .github/skills/skill-creator/scripts/init_skill.py <skill-name> --path <destination>`
-- Quick validation of a skill
-  - `python .github/skills/skill-creator/scripts/quick_validate.py <skill-folder>`
-- Package for distribution
-  - `python .github/skills/skill-creator/scripts/package_skill.py <skill-folder> [output-dir]`
-  - Packaging runs validation first and fails if validation does not pass.
+- Skill sanity check
 
-## Examples from this repo (use when writing/validating)
+  - `python .github/skills/skill-creator/scripts/quick_validate.py <skill-folder>` — checks frontmatter format, allowed keys, naming rules, and lengths.
 
-- Good frontmatter + trigger example: `skills/humanize/SKILL.md` — concise `description` that explicitly lists "When to use" cases.
-- Templates & scripts: `.github/skills/skill-creator/scripts/init_skill.py` shows the recommended template structure for `SKILL.md`, `scripts/`, `references/`, and `assets/`.
+- Packaging
 
-## Do / Don't (actionable, repo-specific)
+  - `python .github/skills/skill-creator/scripts/package_skill.py <skill-folder> [output-dir]` — validates then creates `<skill-name>.skill` (zip). The packager preserves paths relative to the skill's parent folder and prints added files as it runs.
+
+- Smoke tests / examples
+
+  - Examples must be in `references/examples.md` using this pattern:
+
+    Input:
+
+    ```text
+    ...
+    ```
+
+    Expected output:
+
+    ```text
+    ...
+    ```
+
+  - Local smoke-test runner: `skills/<skill>/scripts/validate_examples.py` — run like:
+
+    ```bash
+    python skills/humanize/scripts/validate_examples.py --examples skills/humanize/references/examples.md --runner "python skills/humanize/scripts/mock_runner.py"
+    ```
+
+  - The runner expects a command that reads from stdin and writes the skill output to stdout. The validator supports `--fuzzy` to allow whitespace-insensitive comparisons.
+  - Note: `scripts/mock_runner.py` are intentionally minimal local mocks — replace with the real skill runtime when available.
+
+## Repo-specific examples & patterns
+
+- Use `skills/humanize/SKILL.md` as a model for short, trigger-focused descriptions and `references/guidelines.md` for voice/style rules.
+- Use `skills/cpp-modernize/references/guidelines.md` as the canonical example for formatting, style rules, and citation patterns (always cite cppreference for language features).
+
+## Do / Don't (actionable)
 
 - DO put deterministic or repeatedly executed logic into `scripts/` so agents can run them instead of re-writing code each time.
 - DO place detailed schemata, API docs, or policies in `references/` and link them from `SKILL.md` (they are loaded only when needed).
-- DO include concrete examples and realistic user requests in `SKILL.md` body — agents use examples to validate intent and outputs.
-- DON'T put installation or long operational documentation into `SKILL.md` body (these belong in `references/` or external docs).
+- DO include concrete examples and expected outputs in `references/examples.md` to enable smoke tests.
+- DON'T put environment setup, installation guides, or CI docs in `SKILL.md` (those belong in repo-level docs).
 - DON'T change frontmatter keys or naming rules without updating `quick_validate.py`.
 
-## Debugging & tests
+## Debugging & testing tips
 
-- When a skill fails to package, run `quick_validate.py` locally to see specific validation errors.
-- Confirm scripts run by executing them locally (e.g., `python scripts/example.py`).
-
-## Notes about packaging
-
-- Packager creates a `.skill` (zip) file containing the skill folder. The packaging script includes files relative to the skill's parent directory (so the zip preserves the skill folder name).
+- If packaging fails, run `quick_validate.py` first — it prints exact validation errors (invalid YAML, missing keys, unexpected frontmatter fields, name/description violations).
+- Use the `validate_examples.py` smoke tests to verify runner compatibility and example correctness.
+- When adding large reference files, include a short TOC to help agents find relevant sections without loading the whole file.
 
 ---
 
-If any of these conventions are unclear or you want different behavior (e.g., additional frontmatter fields or CI checks), tell me what should change and I will iterate on this guidance.
+If any of this is unclear or you want different behavior (e.g., extra frontmatter fields or CI hooks for validation), tell me what should change and I will update this guidance.
