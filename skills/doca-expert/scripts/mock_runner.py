@@ -42,7 +42,7 @@ def run_prompt(s: str) -> str:
             "    class DocaDevice {\n"
             "    public:\n"
             "        explicit DocaDevice(int dev_index) {\n"
-            "            if (doca_dev_open(dev_index, &dev_) != 0) { throw std::runtime_error(\"open device\"); }\n"
+            '            if (doca_dev_open(dev_index, &dev_) != 0) { throw std::runtime_error("open device"); }\n'
             "            // query and store capabilities\n"
             "        }\n"
             "        ~DocaDevice() noexcept {\n"
@@ -55,11 +55,15 @@ def run_prompt(s: str) -> str:
             "    private:\n"
             "        doca_dev_handle dev_ = nullptr; // C API handle (pseudo-symbol)\n"
             "    };\n\n"
-            "References:\n- DOCA Flow SDK docs: https://docs.nvidia.com/doca/sdk/doca-flow/index.html\n"
-            "- DOCA Flow API (v3.2.0): https://docs.nvidia.com/doca/api/3.2.0/doca-libraries-api/modules.html"
+            "References:\n- [DOCA Flow SDK docs](https://docs.nvidia.com/doca/sdk/doca-flow/index.html)\n"
+            "- [DOCA Flow API (v3.2.0)](https://docs.nvidia.com/doca/api/3.2.0/doca-libraries-api/modules.html)"
         )
 
-    if "FlowProgrammer" in s or "RAII wrapper" in s or ("combine" in s and "device" in s):
+    if (
+        "FlowProgrammer" in s
+        or "RAII wrapper" in s
+        or ("combine" in s and "device" in s)
+    ):
         return (
             "Summary: Encapsulate device and table lifecycle into a `FlowProgrammer` RAII class that owns a `DocaDevice` and a `BatchUpdater`, exposing a safe API for adding rules and committing batches, while providing telemetry hooks.\n\n"
             "Checklist:\n- Ensure deterministic cleanup and no-throw destructors.\n- Separate validate vs. commit paths and provide async-friendly commit hooks.\n- Provide metrics for commit latency, error counts, and table usage.\n\n"
@@ -107,7 +111,11 @@ def run_prompt(s: str) -> str:
             "- [DOCA Flow API (v3.2.0)](https://docs.nvidia.com/doca/api/3.2.0/doca-libraries-api/modules.html)"
         )
 
-    if "FlowProgrammer" in s or "RAII wrapper" in s or ("combine" in s and "device" in s):
+    if (
+        "FlowProgrammer" in s
+        or "RAII wrapper" in s
+        or ("combine" in s and "device" in s)
+    ):
         return (
             "Summary: Encapsulate device and table lifecycle into a `FlowProgrammer` RAII class that owns a `DocaDevice` and a `BatchUpdater`, exposing a safe API for adding rules and committing batches, while providing telemetry hooks.\n\n"
             "Checklist:\n- Ensure deterministic cleanup and no-throw destructors.\n- Separate validate vs. commit paths and provide async-friendly commit hooks.\n- Provide metrics for commit latency, error counts, and table usage.\n\n"
