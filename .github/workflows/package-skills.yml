@@ -3,9 +3,7 @@ name: Package skills
 on:
   push:
     branches: [ main ]
-    paths:
-      - 'skills/**'
-      - '.github/skills/**'
+
   workflow_dispatch: {}
 
 jobs:
