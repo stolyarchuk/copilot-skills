@@ -7,6 +7,7 @@ Skills are small, reusable packages that teach an AI repeatable tasks. This repo
 ## Contents
 
 - `skills/cpp-modernize` - C++23 modernization: refactorings, short examples, and cppreference links. See `skills/cpp-modernize/SKILL.md`.
+- `skills/cv-adapter` - Recruiter-style resume adaptation to a specific job description (minimal edits, no invention). See `skills/cv-adapter/SKILL.md`.
 - `skills/cv-improver` - Recruiter-style CV critique + optional rewrite/re-review (no invention). See `skills/cv-improver/SKILL.md`.
 - `skills/doca-expert` - DOCA Flow (>= 3.2.0): C++ patterns, performance trade-offs, and official links. See `skills/doca-expert/SKILL.md`.
 - `skills/humanize` - Rewrite technical text into concise, engineer-to-engineer tone. See `skills/humanize/SKILL.md`.
@@ -14,7 +15,7 @@ Skills are small, reusable packages that teach an AI repeatable tasks. This repo
 
 ### Optional dependencies
 
-- `skills/cv-improver`: if resumes are attached as PDFs and your agent runtime supports MCP tools, consider using MarkItDown via the markitdown-mcp server to convert documents to Markdown/text before critique/rewrite: <https://github.com/microsoft/markitdown>
+- `skills/cv-adapter` / `skills/cv-improver`: if resumes are attached as PDFs and your agent runtime supports MCP tools, consider using MarkItDown via the markitdown-mcp server to convert documents to Markdown/text before critique/rewrite: <https://github.com/microsoft/markitdown>
 
 ---
 
