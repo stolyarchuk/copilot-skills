@@ -14,7 +14,7 @@ Expected output:
 
 ```text
 Summary: App crashes after recent auth change; affect multiple browsers and OSes.
-Repro: Unknown — customers report crashes across browsers/OS.
+Repro: Unknown - customers report crashes across browsers/OS.
 Impact: Multiple customers affected. Prioritize investigation.
 Suggested next steps:
 1. Roll back auth change if rollback is feasible.
@@ -64,6 +64,52 @@ Expected output:
 ```text
 Summary: Proposal to change cache TTL to improve performance.
 Open question: Which TTL value (seconds) should we use and what workload was measured?
+```
+
+## Example 5 — Single-point informational
+
+Input:
+
+```text
+The incident is resolved.
+```
+
+Expected output:
+
+```text
+Summary: Incident is resolved.
+```
+
+## Example 6 — Invention risk
+
+Input:
+
+```text
+The API is slow during peak traffic and we need to make it better.
+```
+
+Expected output:
+
+```text
+Summary: API latency increases during peak traffic.
+Open question: We need measured latency values and peak-load context before proposing a concrete fix.
+```
+
+## Example 7 — Mixed prose and literal preservation
+
+Input:
+
+```text
+Please run kubectl get pods -n payments and check logs for ERROR timeout after 30s.
+```
+
+Expected output:
+
+```text
+Summary: Check payment namespace pod status and timeout errors.
+Next steps:
+1. Run kubectl get pods -n payments.
+2. Check logs for ERROR timeout after 30s.
 ```
 
 ## Quick validation script idea
