@@ -3,3 +3,4 @@ dist
 ipch
 *.o
 *.so
+.worktrees
