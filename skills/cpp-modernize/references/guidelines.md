@@ -1,175 +1,102 @@
 ---
 name: cpp-modernize-guidelines
-description: "Guidelines for the `cpp-modernize` skill: how to answer, formatting rules, and C++ style rules used by examples and advice."
+description: "Production decision guide for the `cpp-modernize` skill, covering ownership, ABI boundaries, error handling, performance, concurrency, and staged C++23 adoption."
 ---
 
 # Guidelines
 
-This file explains how `cpp-modernize` should respond and what it must include, plus a consolidated set of C++ code style rules used for examples and recommendations. These rules are intentionally **toolchain- and project-agnostic** and do not reference third-party or project-specific libraries.
+Use this file to decide when modernization is a safe default, when it needs trade-off analysis, and when the boundary should stay stable while internals improve.
 
 ## Core rules
 
-- **Always target C++23.** Use modern language and library features (concepts, ranges, `std::span`, `std::format`, `std::expected`, etc.) only when they clarify intent, improve safety, or measurably improve performance.
-- **Cite authoritative references.** For language or library features, include a cppreference.com link where relevant (e.g., [cppreference - ranges](https://en.cppreference.com/w/cpp/ranges)).
-- **Small, compilable examples.** Examples must be minimal, self-contained, and valid C++23. Prefer 10–30 lines and use short one-line comments for clarity.
-- **Explain trade-offs briefly.** Mention at most one trade-off (binary size, compile-time, toolchain requirement) when applicable.
-- **Avoid environment assumptions.** If a suggestion requires flags or extra libraries (e.g., `-std=c++23`), mention it briefly.
+- Prefer incremental modernization over rewrites.
+- Apply the contract order from `SKILL.md`: ownership and safety first, interface simplification second, algorithm and library usage third, newer expressive features last.
+- Name at least one concrete production risk before recommending a change.
+- Always mention support, migration, compatibility, or performance caveats when they materially affect the advice.
+- Every recommendation should reinforce one of the allowed response shapes in `SKILL.md`.
 
----
+## Three-way decision model
 
-## Code formatting & layout
+- **Good modernization defaults** - Use when the change improves safety or clarity without changing ownership semantics, public contracts, or hot-path behavior.
+  - Example: replace `(ptr, len)` read-only inputs with `std::span<const T>` in internal code where both sides already build with a C++20+ standard library.
+  - Example: replace manual index loops with `std::ranges::find_if` when lifetime is obvious and profiling does not show a regression.
+- **Caution cases** - Use when the change may be right, but only after trade-off analysis around ABI, toolchain support, performance, or migration cost.
+  - Example: propose `std::expected` only if the codebase permits it, the standard library support is available, and the migration path from status codes is acceptable.
+  - Example: propose coroutines only if runtime integration, cancellation model, debugging cost, and compiler support are already understood.
+  - Example: propose views or pipelines only if temporary lifetimes, branch predictability, and debugger readability remain acceptable.
+- **Keep as-is or modernize internally only** - Use when changing the visible boundary is riskier than the modernization benefit.
+  - Example: keep a shared-library `const char*` boundary stable, but use `std::string_view` internally after the call boundary.
+  - Example: keep a conventional hot-loop form when a ranges pipeline would add temporary objects or hide cost.
 
-- Filenames should be lowercase; underscores are allowed to separate words.
-- C++ source files commonly use `.cxx` or `.cpp`; headers use `.h` or `.hpp`.
-- Files must end with a single newline character.
-- **Maximum line length:** 90 characters.
-- **Indentation:** 4 spaces; do not use tabs.
-- Separate top-level constructs (classes, functions, namespaces) with a single blank line.
-- Group and sort `#include` directives, separated by a blank line between groups. Recommended order:
-  1. Current file's header
-  2. Project headers
-  3. External library headers
-  4. C++ standard library headers
-  5. C standard library headers
-- Use `#pragma once` for header guards.
+## Ownership and lifetime
 
-### Spacing & braces
+- Distinguish observer from owner before changing pointer-based APIs.
+- Do not replace raw pointers with `std::unique_ptr` or `std::shared_ptr` unless transfer semantics and lifetime responsibilities are explicit.
+- Treat `T*`, `const T*`, references, `std::span`, and handles as different contracts: ownership, mutability, nullability, and extent must stay clear.
+- Call out nullable versus non-nullable intent explicitly; use references only when null is not a valid state and lifetime is already enforced.
+- Good default: convert internal read-only buffer access to `std::span<const std::byte>` when ownership stays external and size is already known.
+- Caution case: changing `T*` to `T&` or `std::span<T>` on a public API can silently remove null or sentinel semantics.
+- Keep-as-is/internal-only: if ownership is undocumented, preserve the boundary and recommend documenting or splitting observer and owner paths before modernizing the type.
 
-- The bodies of `if`, `for`, and other control blocks must always be enclosed in braces:
+## API and ABI boundaries
 
-```cpp
-if (a == b) {
-    do_something();
-}
-```
+- Be explicit about ABI-sensitive contexts: shared libraries, plugins, public headers, SDKs, serialized layouts, and C interop.
+- Do not recommend signature changes across those boundaries without naming the compatibility consequence.
+- `std::string_view`, `std::expected`, standard-library containers, and exception behavior can all affect ABI, binary compatibility, or language-boundary expectations.
+- Good default: modernize implementation details behind a stable facade.
+- Caution case: swapping a public `const char*` or out-parameter API for `std::string_view` or `std::expected` may require coordinated rebuilds, versioning, or dual-entry-point rollout.
+- Keep-as-is/internal-only: keep the exported signature stable and show `No code change at boundary` or an `Internal-only example` where internals use safer types.
 
-- The opening brace of a function or method is separated from the signature by a space and remains on the same line. Empty function bodies are `{}` without a line break.
+## Exception policy and error handling
 
-```cpp
-void func_foo(Arg& a) {
-    // ...
-}
+- Check whether the codebase uses exceptions, disables them, or requires status-code style APIs.
+- Do not recommend `std::expected`, exception-based construction, or throwing APIs without mentioning toolchain support and migration impact when relevant.
+- Treat coroutines as an opt-in architecture change, not a default cleanup step; mention support, execution model, and migration cost before recommending them.
+- Good default: modernize internal helpers first, then decide whether the boundary should expose exceptions, `std::expected`, or status objects.
+- Caution case: moving from `bool` plus out-parameter to `std::expected` can improve clarity, but may conflict with exception-disabled builds, older standard libraries, or C-facing callers.
+- Caution case: replacing callback, polling, or thread-based flows with coroutines may affect allocation behavior, scheduler assumptions, error propagation, and observability.
+- Keep-as-is/internal-only: preserve a status-code boundary and modernize internals with clearer local helpers, enums, or error objects returned only within C++-only layers.
+- When exceptions are disabled, prefer explicit result channels and make the non-throwing policy visible in the recommendation.
 
-Foo::Foo() {}
-```
+## Allocation and hot-path performance
 
-- `case` labels align with `switch`; indent the body of each `case`.
+- Treat allocator-sensitive paths, packet processing, parsing loops, and branch-heavy transforms as production-sensitive.
+- Do not assume ranges, views, `std::format`, or extra temporary objects are improvements in hot code.
+- Good default: adopt safer library utilities when cost is obvious and bounded, such as `std::span` for non-owning access or `reserve` before append-heavy work.
+- Caution case: a view pipeline may look cleaner but add hidden branching, iterator adaptation, lifetime pitfalls, or harder-to-profile code.
+- Keep-as-is/internal-only: keep the conventional loop when it is clearer, easier to profile, or cheaper for the allocator and branch predictor.
+- Mention temporary objects, view lifetimes, debug cost, and allocator behavior when they are part of the decision.
 
-### Asterisk/ampersand and const placement
+## Concurrency and synchronization safety
 
-- Put `*` and `&` adjacent to the type, not the variable name:
+- Do not modernize synchronization code unless the thread-safety contract stays explicit.
+- Changing atomics, condition signaling, lock scope, or container usage can alter memory-order assumptions even if the code looks cleaner.
+- Good default: prefer clarity improvements that preserve the same lock, atomic, and wake-up rules.
+- Caution case: replacing a hand-written state loop with higher-level constructs may hide races, change visibility guarantees, or introduce blocking behavior.
+- Keep-as-is/internal-only: preserve the boundary and current synchronization model until the user can confirm invariants, contention profile, and ownership of shared state.
+- When concurrency matters, say so directly in `Assessment` and avoid speculative rewrites.
 
-```cpp
-int* ptr;
-int& ref = value;
-```
+## Toolchain support and staged rollout
 
-- `const` should precede the type:
+- Target C++23 by default, but verify compiler and standard-library availability before leaning on newer library facilities.
+- Mention partial rollout options when a full migration would be disruptive.
+- Good default: suggest staged adoption, such as modernizing internal call sites first or adding adapter layers around old interfaces.
+- Caution case: `std::expected`, `std::format`, coroutines, modules, and some ranges-heavy patterns may require newer compilers, library versions, runtime support, or deployment coordination.
+- Keep-as-is/internal-only: if support is mixed, keep the public API stable and show how internals can adopt safer types behind compatibility wrappers.
+- Prefer advice that supports mixed old/new code during migration rather than requiring a flag day.
 
-```cpp
-const int* ptr;
-const int& ref;
-```
+## Style guidance kept on purpose
 
-### Literal & initialization style
-
-- Floating-point literals include a decimal point and an appropriate suffix for `float` (e.g., `1.0f`).
-- Prefer brace-initialization for fields and complex objects (`Type var{...};`).
-- Initialize simple constants and variables using `=` for clarity (`auto val = 10;`).
-
----
-
-## Naming conventions
-
-- Types (structs, classes, enum classes, template parameters): `CamelCase`.
-- Functions, methods, public members, and non-member functions: `snake_case`.
-- Private member variables: `snake_case_` (trailing underscore).
-- Local variables and parameters: `snake_case`.
-- Compile-time constants: `UPPER_CASE`.
-- Local non-compile-time constants: `snake_case`.
-- Namespaces: lowercase, single word.
-
----
-
-## Functions & complexity
-
-- Keep functions short and focused where practical:
-  - Recommended maximum function length: ~40 lines.
-  - Recommended maximum nesting depth: 4 levels.
-  - Recommended maximum parameters: 5 (use a struct for more).
-  - Recommended maximum local variables: 10.
-- Separate logical blocks within functions with a blank line to improve readability.
-- Prefer `inline` functions for small utilities where appropriate.
-
----
-
-## Conditionals & loops
-
-- Avoid overly complex conditionals; use boolean variables to express intent when helpful.
-- Parenthesize sub-expressions for clarity.
-- Prefer `switch` over long `if-else` chains when applicable.
-- Do not put unrelated expressions in the `for (...)` header.
-- For infinite loops, prefer `while (true)`.
-
----
-
-## Classes & members
-
-- Use `struct` for plain aggregates; use `class` when behavior or encapsulation is required.
-- Mark single-argument constructors `explicit` unless implicit conversion is desired.
-- When overriding virtual functions, mark them `override` (or `final` where appropriate).
-- Order class sections consistently (recommended): types and private fields, public API, protected, private methods. Keep declaration order consistent with definitions.
-- Initialize all members in constructors and prefer brace-initialization for fields: `uint32_t field_{123};`.
-- Access specifiers (public/protected/private) appear without indentation and should be separated by a blank line from other sections.
-
----
-
-## Types & integers
-
-- Prefer fixed-width integer types from `<cstdint>` (`int32_t`, `uint64_t`) for interfaces that need precise widths.
-- Standard types like `size_t` and `ptrdiff_t` remain acceptable for their intended uses.
-- Prefer `nullptr` over `NULL`.
-
----
-
-## Comments & documentation
-
-- Comments should start with a capital letter. For single-sentence comments, omit the final period.
-- Use single-line `//` comments with a single space after `//`.
-- Use `// TODO: <reason>` for short work-in-progress notes.
-
----
-
-## Macros, RTTI & other constructs
-
-- Prefer not to use macros; prefer `constexpr`, `inline` functions, `enum`s, and templates instead.
-- If macros are required, keep them local, `#undef` them after use, avoid side effects, and favor uppercase names with a unique prefix.
-- Avoid RTTI and user-defined literals unless there is a specific, well-justified need.
-- Use of `goto` is discouraged.
-
----
-
-## Example: short style snippets
-
-```cpp
-// Namespace (no indentation inside namespace)
-namespace mylib {
-
-class Foo {
-public:
-    Foo() = default;
-
-    void do_work() { /* short function */ }
-
-private:
-    int counter_{};
-};
-
-} // namespace mylib
-```
-
----
+- Keep examples short, realistic, and valid C++23.
+- Prefer naming and formatting that do not distract from the modernization decision.
+- Use comments only when they explain a production constraint, not to narrate obvious syntax.
+- If example style does not affect ownership, compatibility, performance, or rollout decisions, keep it out of the answer.
 
 ## References
 
-- Use cppreference.com for language or library feature references when suggesting code changes (e.g., [cppreference - ranges](https://en.cppreference.com/w/cpp/ranges)).
+- [cppreference - std::span](https://en.cppreference.com/w/cpp/container/span)
+- [cppreference - std::string_view](https://en.cppreference.com/w/cpp/string/basic_string_view)
+- [cppreference - std::expected](https://en.cppreference.com/w/cpp/utility/expected)
+- [cppreference - coroutines](https://en.cppreference.com/w/cpp/language/coroutines)
+- [cppreference - ranges](https://en.cppreference.com/w/cpp/ranges)
+- [cppreference - memory model](https://en.cppreference.com/w/cpp/language/memory_model)
